@@ -68,15 +68,15 @@ func Run(t *testing.T, s suite.TestingSuite) {
 }
 
 func (s *TestSuite) SetupSuite() {
-	var err error
+	err := s.opts.validate()
+	s.Require().NoError(err)
+
 	s.dkrPool, err = dockertest.NewPool("")
 	s.Require().NoError(err)
 }
 
 func (s *TestSuite) SetupTest() {
 	s.T().Log("setting up Panacea e2e test...")
-
-	s.Require().NoError(s.opts.validate())
 
 	var err error
 	s.Chain, err = newChain()
