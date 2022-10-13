@@ -23,11 +23,9 @@ import (
 )
 
 const (
-	umedDenom       = "umed"
-	initBalanceStr  = "100000000000000umed"
-	minGasPrice     = "5"
-	blockTimeSec    = 6                                  // 5s of timeout_commit + 1s
-	unbondingPeriod = 60 * 60 * 24 * 7 * 3 * time.Second // three weeks
+	umedDenom      = "umed"
+	initBalanceStr = "100000000000000umed"
+	minGasPrice    = "5"
 )
 
 var (

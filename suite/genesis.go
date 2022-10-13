@@ -134,6 +134,11 @@ func addGenesisAccount(path, moniker, amountStr string, accAddr sdk.AccAddress) 
 	return genutil.ExportGenesisFile(genDoc, genFile)
 }
 
+const (
+	blockTimeSec    = 6                                  // 5s of timeout_commit + 1s
+	unbondingPeriod = 60 * 60 * 24 * 7 * 3 * time.Second // three weeks
+)
+
 // TODO: make this function in panacea-core public
 // overrideAppState overrides some parameters in the genesis doc to the panacea-specific values.
 func overrideAppState(cdc codec.JSONCodec, appState map[string]json.RawMessage) (map[string]json.RawMessage, error) {
