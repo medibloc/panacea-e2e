@@ -16,7 +16,17 @@ type depTestSuite struct {
 }
 
 func TestDEP(t *testing.T) {
-	suite.Run(t, &depTestSuite{})
+	suite.Run(t, &depTestSuite{
+		suite.NewTestSuite(suite.TestSuiteOptions{
+			GenesisAccBalance: sdk.NewCoin("umed", sdk.NewInt(1000000000000000)),
+			ValidatorStakes: []sdk.Coin{
+				sdk.NewCoin("umed", sdk.NewInt(100000000)),
+				sdk.NewCoin("umed", sdk.NewInt(100000000)),
+				sdk.NewCoin("umed", sdk.NewInt(100000000)),
+				sdk.NewCoin("umed", sdk.NewInt(100000000)),
+			},
+		}),
+	})
 }
 
 func (s *depTestSuite) TestFoo() {
@@ -25,7 +35,7 @@ func (s *depTestSuite) TestFoo() {
 	balances, err := queryBalances(endpoint, addr.String())
 	s.Require().NoError(err)
 
-	s.Require().Equal(sdk.NewCoins(sdk.NewCoin("umed", sdk.NewInt(99900000000000))), balances)
+	s.Require().Equal(sdk.NewCoins(sdk.NewCoin("umed", sdk.NewInt(999999900000000))), balances)
 }
 
 func queryBalances(endpoint, addr string) (sdk.Coins, error) {

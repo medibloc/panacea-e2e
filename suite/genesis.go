@@ -47,19 +47,14 @@ func getGenDoc(path string) (*tmtypes.GenesisDoc, error) {
 	return doc, nil
 }
 
-func addGenesisAccount(path, moniker, amountStr string, accAddr sdk.AccAddress) error {
+func addGenesisAccount(path, moniker string, amount sdk.Coin, accAddr sdk.AccAddress) error {
 	serverCtx := server.NewDefaultContext()
 	config := serverCtx.Config
 
 	config.SetRoot(path)
 	config.Moniker = moniker
 
-	coins, err := sdk.ParseCoinsNormalized(amountStr)
-	if err != nil {
-		return fmt.Errorf("failed to parse coins: %w", err)
-	}
-
-	balances := banktypes.Balance{Address: accAddr.String(), Coins: coins.Sort()}
+	balances := banktypes.Balance{Address: accAddr.String(), Coins: sdk.NewCoins(amount)}
 	genAccount := authtypes.NewBaseAccount(accAddr, nil, 0, 0)
 
 	genFile := config.GenesisFile()

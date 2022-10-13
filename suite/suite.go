@@ -24,16 +24,13 @@ import (
 
 const (
 	umedDenom      = "umed"
-	initBalanceStr = "100000000000000umed"
 	minGasPrice    = "5"
-)
-
-var (
-	stakeAmountCoin = sdk.NewCoin(umedDenom, sdk.NewInt(100000000000))
 )
 
 type TestSuite struct {
 	suite.Suite
+
+	opts TestSuiteOptions
 
 	Chain *Chain
 
@@ -42,12 +39,43 @@ type TestSuite struct {
 	ValResources map[string][]*dockertest.Resource
 }
 
+type TestSuiteOptions struct {
+	GenesisAccBalance sdk.Coin
+	ValidatorStakes []sdk.Coin
+}
+
+func (o *TestSuiteOptions) validate() error {
+	if o.GenesisAccBalance.IsZero() {
+		return fmt.Errorf("genesis account balance shouldn't be zero")
+	}
+
+	if len(o.ValidatorStakes) == 0 {
+		return fmt.Errorf("at least one validator should be created")
+	}
+
+	for _, stake := range o.ValidatorStakes {
+		if stake.Amount.GT(o.GenesisAccBalance.Amount) {
+			return fmt.Errorf("validator stake cannot be greater than genesis account balance")
+		}
+	}
+
+	return nil
+}
+
+func NewTestSuite(opts TestSuiteOptions) TestSuite {
+	return TestSuite{
+		opts: opts,
+	}
+}
+
 func Run(t *testing.T, s suite.TestingSuite) {
 	suite.Run(t, s)
 }
 
 func (s *TestSuite) SetupSuite() {
 	s.T().Log("setting up Panacea e2e test suite...")
+
+	s.Require().NoError(s.opts.validate())
 
 	var err error
 	s.Chain, err = newChain()
@@ -83,14 +111,14 @@ func (s *TestSuite) TearDownSuite() {
 }
 
 func (s *TestSuite) initNodes(c *Chain) {
-	s.Require().NoError(c.createAndInitValidators(2))
+	s.Require().NoError(c.createAndInitValidators(len(s.opts.ValidatorStakes)))
 
 	// init a genesis file for the 1st validator
 	val0ConfigDir := c.Validators[0].configDir()
 	for _, val := range c.Validators {
 		address := val.keyInfo.GetAddress()
 		s.Require().NoError(
-			addGenesisAccount(val0ConfigDir, "", initBalanceStr, address),
+			addGenesisAccount(val0ConfigDir, "", s.opts.GenesisAccBalance, address),
 		)
 	}
 
@@ -124,7 +152,7 @@ func (s *TestSuite) initGenesis(c *Chain) {
 	// generate genesis txs
 	genTxs := make([]json.RawMessage, len(c.Validators))
 	for i, val := range c.Validators {
-		createValmsg, err := val.buildCreateValidatorMsg(stakeAmountCoin)
+		createValmsg, err := val.buildCreateValidatorMsg(s.opts.ValidatorStakes[i])
 		s.Require().NoError(err)
 		signedTx, err := val.signMsg(createValmsg)
 
