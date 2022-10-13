@@ -22,11 +22,6 @@ import (
 	rpchttp "github.com/tendermint/tendermint/rpc/client/http"
 )
 
-const (
-	umedDenom      = "umed"
-	minGasPrice    = "5"
-)
-
 type TestSuite struct {
 	suite.Suite
 
@@ -73,15 +68,18 @@ func Run(t *testing.T, s suite.TestingSuite) {
 }
 
 func (s *TestSuite) SetupSuite() {
-	s.T().Log("setting up Panacea e2e test suite...")
+	var err error
+	s.dkrPool, err = dockertest.NewPool("")
+	s.Require().NoError(err)
+}
+
+func (s *TestSuite) SetupTest() {
+	s.T().Log("setting up Panacea e2e test...")
 
 	s.Require().NoError(s.opts.validate())
 
 	var err error
 	s.Chain, err = newChain()
-	s.Require().NoError(err)
-
-	s.dkrPool, err = dockertest.NewPool("")
 	s.Require().NoError(err)
 
 	s.dkrNet, err = s.dkrPool.CreateNetwork(s.Chain.ID)
@@ -96,7 +94,7 @@ func (s *TestSuite) SetupSuite() {
 	s.runValidators(s.Chain, 0)
 }
 
-func (s *TestSuite) TearDownSuite() {
+func (s *TestSuite) TearDownTest() {
 	s.T().Log("tearing down Panacea e2e test suite...")
 
 	for _, vr := range s.ValResources {
@@ -225,7 +223,7 @@ func (s *TestSuite) initValidatorConfigs(c *Chain) {
 
 		appConfig := srvconfig.DefaultConfig()
 		appConfig.API.Enable = true
-		appConfig.MinGasPrices = fmt.Sprintf("%s%s", minGasPrice, umedDenom)
+		appConfig.MinGasPrices = "5umed" 
 
 		srvconfig.WriteConfigFile(appCfgPath, appConfig)
 	}
