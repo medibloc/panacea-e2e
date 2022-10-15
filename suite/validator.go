@@ -80,15 +80,6 @@ func (v *Validator) init() error {
 	return nil
 }
 
-func (v *Validator) createKey(name string) error {
-	mnemonic, err := newMnemonic()
-	if err != nil {
-		return err
-	}
-
-	return v.createKeyFromMnemonic(name, mnemonic)
-}
-
 func (v *Validator) createKeyFromMnemonic(name, mnemonic string) error {
 	dir := v.configDir()
 	kb, err := keyring.New(keyringAppName, keyring.BackendTest, dir, nil)

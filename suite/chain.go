@@ -70,7 +70,7 @@ func (c *Chain) configDir() string {
 	return fmt.Sprintf("%s/%s", c.dataDir, c.ID)
 }
 
-func (c *Chain) createAndInitValidators(count int) error {
+func (c *Chain) createAndInitValidators(count int, mnemonic string) error {
 	for i := 0; i < count; i++ {
 		val := c.createValidator(i)
 
@@ -82,7 +82,7 @@ func (c *Chain) createAndInitValidators(count int) error {
 		c.Validators = append(c.Validators, val)
 
 		// create keys
-		if err := val.createKey("val"); err != nil {
+		if err := val.createKeyFromMnemonic("val", mnemonic); err != nil {
 			return err
 		}
 		if err := val.createNodeKey(); err != nil {

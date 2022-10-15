@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,7 +27,8 @@ type TestSuite struct {
 	suite.Suite
 
 	opts TestSuiteOptions
-
+	
+	mnemonic string
 	Chain *Chain
 
 	dkrPool      *dockertest.Pool
@@ -79,6 +81,10 @@ func (s *TestSuite) SetupTest() {
 	s.T().Log("setting up Panacea e2e test...")
 
 	var err error
+
+	s.mnemonic, err = newMnemonic()
+	s.Require().NoError(err)
+
 	s.Chain, err = newChain()
 	s.Require().NoError(err)
 
@@ -109,7 +115,7 @@ func (s *TestSuite) TearDownTest() {
 }
 
 func (s *TestSuite) initNodes(c *Chain) {
-	s.Require().NoError(c.createAndInitValidators(len(s.opts.ValidatorStakes)))
+	s.Require().NoError(c.createAndInitValidators(len(s.opts.ValidatorStakes), s.mnemonic))
 
 	// init a genesis file for the 1st validator
 	val0ConfigDir := c.Validators[0].configDir()
@@ -294,4 +300,46 @@ func noRestart(config *docker.HostConfig) {
 	config.RestartPolicy = docker.RestartPolicy{
 		Name: "no",
 	}
+}
+
+func (s *TestSuite) runDOracle() {
+	s.T().Log("starting doracle...")
+
+	tmpDir, err := ioutil.TempDir("", "panacea-e2e-doracle-")
+	s.Require().NoError(err)
+
+	_, err = copyFile(
+		filepath.Join("./scripts/", "doracle-bootstrap.sh"),
+		filepath.Join(tmpDir, "doracle-bootstrap.sh"),
+	)
+	s.Require().NoError(err)
+
+	_, err = s.dkrPool.RunWithOptions(
+		&dockertest.RunOptions{
+			Name: "doracle",
+			Repository: "ghcr.io/medibloc/panacea-doracle",
+			Tag: "pr-87",
+			NetworkID: s.dkrNet.Network.ID,
+			Mounts: []string{
+				fmt.Sprintf("%s/:/doracle", tmpDir),
+			},
+			PortBindings: map[docker.Port][]docker.PortBinding{
+				"8080/tcp": {{HostIP: "", HostPort: "8080"}},
+			},
+			Env: []string{
+				fmt.Sprintf("ORACLE_MNEMONIC=%s", s.mnemonic),
+				fmt.Sprintf("ORACLE_ACC_NUM=0"),
+				fmt.Sprintf("ORACLE_ACC_NUM=0"),
+				fmt.Sprintf("CHAIN_ID=%s", s.Chain.ID),
+				fmt.Sprintf("PANACEA_VAL_HOST=%s", s.ValResources[s.Chain.ID][0].Container.Name[1:]),
+			},
+			Entrypoint: []string{
+				"sh",
+				"-c",
+				"chmod +x /doracle/doracle_bootstrap.sh && /doracle/doracle_bootstrap.sh",
+			},
+		},
+		noRestart,
+	)
+	s.Require().NoError(err)
 }
