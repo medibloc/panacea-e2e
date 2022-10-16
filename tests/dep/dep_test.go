@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -27,6 +28,7 @@ func TestDEP(t *testing.T) {
 
 func (s *depTestSuite) TestFoo() {
 	s.T().Log("yo")
+	time.Sleep(1 * time.Hour)
 }
 
 func queryBalances(endpoint, addr string) (sdk.Coins, error) {

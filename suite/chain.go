@@ -1,6 +1,8 @@
 package suite
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,7 +29,6 @@ func init() {
 	panacea.SetConfig()
 
 	encodingConfig = panacea.MakeEncodingConfig()
-
 	encodingConfig.InterfaceRegistry.RegisterImplementations(
 		(*sdk.Msg)(nil),
 		&stakingtypes.MsgCreateValidator{},
@@ -37,15 +38,14 @@ func init() {
 		&secp256k1.PubKey{},
 		&ed25519.PubKey{},
 	)
-
 	Cdc = encodingConfig.Marshaler
 }
 
 type Chain struct {
-	suite *TestSuite
-	dir   string
-	ID    string
-	validators  []*validator
+	suite      *TestSuite
+	dir        string
+	ID         string
+	validators []*validator
 }
 
 type validator struct {
@@ -63,10 +63,10 @@ func newChain(suite *TestSuite, testID, testDir string) (*Chain, error) {
 	}
 
 	chain := &Chain{
-		suite: suite,
-		ID:    "chain-" + testID,
-		dir:   chainDir,
-		validators:  make([]*validator, 0),
+		suite:      suite,
+		ID:         "chain-" + testID,
+		dir:        chainDir,
+		validators: make([]*validator, 0),
 	}
 
 	for i := 0; i < suite.opts.NumValidators; i++ {
@@ -166,12 +166,21 @@ func (c *Chain) start() error {
 }
 
 func (v *validator) start() error {
-	resource, err := v.runDaemon(
-		[]string{"/usr/bin/panacead", "start"},
-		nil,
+	suite := v.chain.suite
+
+	resource, err := suite.dkrPool.RunWithOptions(
+		&dockertest.RunOptions{
+			Name:       v.moniker,
+			Repository: "ghcr.io/medibloc/panacea-core",
+			Tag:        "master",
+			NetworkID:  suite.dkrNet.Network.ID,
+			Mounts:     []string{fmt.Sprintf("%s/:/root/.panacea", v.dir)},
+			Cmd:        []string{"/usr/bin/panacead", "start"},
+		},
+		noRestart,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to run container: %w", err)
 	}
 
 	v.dkrResource = resource
@@ -189,26 +198,95 @@ func (v *validator) stop() error {
 	return nil
 }
 
-func (v *validator) runDaemon(cmd []string, env []string) (*dockertest.Resource, error) {
-	suite := v.chain.suite
-
-	r, err := suite.dkrPool.RunWithOptions(
-		&dockertest.RunOptions{
-			Name:       v.moniker,
-			Repository: "ghcr.io/medibloc/panacea-core",
-			Tag:        "master",
-			NetworkID:  suite.dkrNet.Network.ID,
-			Mounts:     []string{fmt.Sprintf("%s/:/root/.panacea", v.dir)},
-			Env:        env,
-			Cmd:        cmd,
-		},
-		noRestart,
+func (v *validator) submitGovParamChangeProposal(proposalHostPath string) error {
+	proposalFilename := "proposal.json"
+	_, err := copyFile(
+		proposalHostPath,
+		filepath.Join(v.dir, proposalFilename),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run container: %w", err)
+		return fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	return r, nil
+	cmd := []string{
+		"/usr/bin/panacead",
+		"tx",
+		"gov",
+		"submit-proposal",
+		"param-change",
+		fmt.Sprintf("/root/.panacea/%s", proposalFilename),
+		"--from=val",
+		"--fees=1000000umed",
+		fmt.Sprintf("--chain-id=%s", v.chain.ID),
+		"--output=json",
+		"-y",
+	}
+	return v.executeTxCmd(cmd)
+}
+
+func (v *validator) voteGovProposal(proposalID int, voteOpt string) error {
+	cmd := []string{
+		"/usr/bin/panacead",
+		"tx",
+		"gov",
+		"vote",
+		fmt.Sprintf("%d", proposalID),
+		voteOpt,
+		"--from=val",
+		"--fees=1000000umed",
+		fmt.Sprintf("--chain-id=%s", v.chain.ID),
+		"--output=json",
+		"-y",
+	}
+	return v.executeTxCmd(cmd)
+}
+
+func (v *validator) executeTxCmd(cmd []string) error {
+	ctx := context.Background()
+
+	suite := v.chain.suite
+
+	exec, err := suite.dkrPool.Client.CreateExec(docker.CreateExecOptions{
+		Context:      ctx,
+		AttachStdout: true,
+		AttachStderr: true,
+		Container:    v.dkrResource.Container.ID,
+		User:         "root",
+		Cmd:          cmd,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create exec cmd in container: %w", err)
+	}
+
+	var outBuf, errBuf bytes.Buffer
+	err = suite.dkrPool.Client.StartExec(exec.ID, docker.StartExecOptions{
+		Context:      ctx,
+		Detach:       false,
+		OutputStream: &outBuf,
+		ErrorStream:  &errBuf,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start exec cmd in container: %w", err)
+	}
+
+	var txResp sdk.TxResponse
+	if err := Cdc.UnmarshalJSON(outBuf.Bytes(), &txResp); err != nil {
+		return fmt.Errorf("failed to unmarshal tx resp: %w", err)
+	}
+
+	endpoint := fmt.Sprintf("http://%s", v.dkrResource.GetHostPort("1317/tcp"))
+	for i := 0; i < 10; i++ {
+		code, err := queryTxRespCode(endpoint, txResp.TxHash)
+		if err != nil {
+			suite.T().Logf("failed to queryTxRespCode: %s, err:%v", txResp.TxHash, err)
+		}
+
+		if code == 0 {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to wait tx success")
 }
 
 func noRestart(config *docker.HostConfig) {

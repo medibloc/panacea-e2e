@@ -34,5 +34,3 @@ ego run /usr/bin/doracled register-oracle \
 sleep 60
 
 ego run /usr/bin/doracled get-oracle-key
-
-ego run /usr/bin/doracled start

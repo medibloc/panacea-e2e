@@ -73,28 +73,24 @@ func queryLatestBlock(endpoint string) (string, int64, error) {
 	return hash, height, nil
 }
 
-func queryTx(endpoint, txHash string) error {
+func queryTxRespCode(endpoint, txHash string) (int, error) {
 	resp, err := http.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", endpoint, txHash))
 	if err != nil {
-		return fmt.Errorf("failed to execute HTTP request: %w", err)
+		return 0, fmt.Errorf("failed to execute HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("tx query returned non-200 status: %d", resp.StatusCode)
+		return 0, fmt.Errorf("tx query returned non-200 status: %d", resp.StatusCode)
 	}
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		return 0, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	txResp := result["tx_response"].(map[string]interface{})
-	if v := txResp["code"]; v.(float64) != 0 {
-		return fmt.Errorf("tx %s failed with status code %v", txHash, v)
-	}
-
-	return nil
+	return txResp["code"].(int), nil
 }
 
 func queryGovProposal(endpoint string, proposalID int) (*govtypes.QueryProposalResponse, error) {
