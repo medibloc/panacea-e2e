@@ -398,9 +398,10 @@ func (s *TestSuite) runDOracle() {
 		withSGXDevices,
 	)
 	s.Require().NoError(err)
-	defer func(r *dockertest.Resource) { //TODO: centralize this
-		s.Require().NoError(s.dkrPool.Purge(r))
-	}(r)
+
+	for valIdx := 1; valIdx < len(s.ValResources[s.Chain.ID]); valIdx++ {
+		s.runMoreDOracle(valIdx)
+	}
 }
 
 func noRestart(config *docker.HostConfig) {
@@ -546,4 +547,50 @@ func (s *TestSuite) waitGovProposalPassed(proposalID int) {
 		5*time.Second,
 		"failed to wait until gov proposal is passed",
 	)
+}
+
+func (s *TestSuite) runMoreDOracle(valIdx int) {
+	tmpDir, err := ioutil.TempDir("", "panacea-e2e-doracle-")
+	s.Require().NoError(err)
+
+	s.T().Logf("starting doracle-%d...: %s", valIdx, tmpDir)
+
+	endpoint := fmt.Sprintf("http://%s", s.ValResources[s.Chain.ID][0].GetHostPort("1317/tcp"))
+	blockHash, blockHeight, err := queryLatestBlock(endpoint)
+	s.Require().NoError(err)
+
+	_, err = copyFile(
+		filepath.Join("./scripts/", "doracle-init-register-start.sh"),
+		filepath.Join(tmpDir, "doracle-init-register-start.sh"),
+	)
+	s.Require().NoError(err)
+
+	_, err = s.dkrPool.RunWithOptions(
+		&dockertest.RunOptions{
+			Name:       fmt.Sprintf("doracle-%s-%d", s.Chain.ID, valIdx),
+			Repository: "ghcr.io/medibloc/panacea-doracle",
+			Tag:        "pr-87",
+			NetworkID:  s.dkrNet.Network.ID,
+			Mounts: []string{
+				fmt.Sprintf("%s/:/doracle", tmpDir),
+			},
+			Env: []string{
+				fmt.Sprintf("ORACLE_MNEMONIC=%s", s.mnemonic),
+				fmt.Sprintf("ORACLE_ACC_NUM=%d", 0),
+				fmt.Sprintf("ORACLE_ACC_INDEX=%d", valIdx),
+				fmt.Sprintf("CHAIN_ID=%s", s.Chain.ID),
+				fmt.Sprintf("PANACEA_VAL_HOST=%s", s.ValResources[s.Chain.ID][0].Container.Name[1:]),
+				fmt.Sprintf("TRUSTED_BLOCK_HASH=%s", blockHash),
+				fmt.Sprintf("TRUSTED_BLOCK_HEIGHT=%d", blockHeight),
+			},
+			Entrypoint: []string{
+				"sh",
+				"-c",
+				"chmod +x /doracle/doracle-init-register-start.sh && /doracle/doracle-init-register-start.sh",
+			},
+		},
+		noRestart,
+		withSGXDevices,
+	)
+	s.Require().NoError(err)
 }
