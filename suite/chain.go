@@ -82,7 +82,7 @@ func (c *Chain) createAndInitValidators(count int, mnemonic string) error {
 		c.Validators = append(c.Validators, val)
 
 		// create keys
-		if err := val.createKeyFromMnemonic("val", mnemonic); err != nil {
+		if err := val.createKeyFromMnemonic("val", mnemonic, 0, i); err != nil {
 			return err
 		}
 		if err := val.createNodeKey(); err != nil {

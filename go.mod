@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/cosmos/cosmos-sdk v0.45.4
 	github.com/cosmos/go-bip39 v1.0.0
-	github.com/medibloc/panacea-core/v2 v2.1.0-alpha2.0.20221012012953-db824cbf71b3
+	github.com/medibloc/panacea-core/v2 v2.1.0-alpha2.0.20221014060810-8dc2c71d5e7b
 	github.com/ory/dockertest/v3 v3.9.1
 	github.com/spf13/viper v1.10.1
 	github.com/stretchr/testify v1.8.0

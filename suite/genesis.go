@@ -169,10 +169,10 @@ func overrideAppState(cdc codec.JSONCodec, appState map[string]json.RawMessage) 
 	if err := cdc.UnmarshalJSON(appState[govtypes.ModuleName], &govGenState); err != nil {
 		return nil, err
 	}
-	minDepositTokens := sdk.TokensFromConsensusPower(100000, sdk.DefaultPowerReduction) // 100,000 MED
+	minDepositTokens := sdk.TokensFromConsensusPower(1, sdk.DefaultPowerReduction) // 1 MED
 	govGenState.DepositParams.MinDeposit = sdk.Coins{sdk.NewCoin(assets.MicroMedDenom, minDepositTokens)}
-	govGenState.DepositParams.MaxDepositPeriod = 60 * 60 * 24 * 14 * time.Second // 14 days
-	govGenState.VotingParams.VotingPeriod = 60 * 60 * 24 * 3 * time.Second       // 3 days (shortened voting period: https://www.mintscan.io/medibloc/proposals/5)
+	govGenState.DepositParams.MaxDepositPeriod = 15 * time.Second
+	govGenState.VotingParams.VotingPeriod = 15 * time.Second
 	appState[govtypes.ModuleName] = cdc.MustMarshalJSON(&govGenState)
 
 	var crisisGenState crisistypes.GenesisState

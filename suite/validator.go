@@ -80,7 +80,7 @@ func (v *Validator) init() error {
 	return nil
 }
 
-func (v *Validator) createKeyFromMnemonic(name, mnemonic string) error {
+func (v *Validator) createKeyFromMnemonic(name, mnemonic string, accNum, index int) error {
 	dir := v.configDir()
 	kb, err := keyring.New(keyringAppName, keyring.BackendTest, dir, nil)
 	if err != nil {
@@ -93,7 +93,7 @@ func (v *Validator) createKeyFromMnemonic(name, mnemonic string) error {
 		return err
 	}
 
-	info, err := kb.NewAccount(name, mnemonic, "", sdk.GetConfig().GetFullFundraiserPath(), algo)
+	info, err := kb.NewAccount(name, mnemonic, "", fmt.Sprintf("m/44'/371'/%d'/0/%d", accNum, index), algo)
 	if err != nil {
 		return err
 	}

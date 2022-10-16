@@ -57,3 +57,4 @@ func queryBalances(endpoint, addr string) (sdk.Coins, error) {
 
 	return balancesResp.Balances, nil
 }
+

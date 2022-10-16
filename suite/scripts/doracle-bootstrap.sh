@@ -2,10 +2,11 @@
 
 set -euxo pipefail
 
-/usr/bin/doracled init
+ego run /usr/bin/doracled init
 
-rm -f /home_mnt/.doracle/config.toml
-tee /home_mnt/.doracle/config.toml <<EOF
+CONFIG_PATH=/doracle/.doracle/config.toml
+rm -f $CONFIG_PATH && touch $CONFIG_PATH
+tee $CONFIG_PATH <<EOF
 log-level = "info"
 oracle-mnemonic = "$ORACLE_MNEMONIC"
 oracle-acc-num = "$ORACLE_ACC_NUM"
@@ -26,4 +27,33 @@ light-client-primary-addr = "tcp://$PANACEA_VAL_HOST:26657"
 light-client-witness-addrs= "tcp://$PANACEA_VAL_HOST:26657"
 EOF
 
-ego run doracled gen-oracle-key
+ego run /usr/bin/doracled gen-oracle-key \
+    --trusted-block-hash $TRUSTED_BLOCK_HASH \
+    --trusted-block-height $TRUSTED_BLOCK_HEIGHT
+
+ORACLE_PUBKEY=$(cat /doracle/.doracle/oracle_pub_key.json | jq -r '.public_key_base64')
+UNIQUE_ID=$(ego uniqueid /usr/bin/doracled)
+
+PROPOSAL_PATH=/doracle/oracle-proposal.json
+rm -f $PROPOSAL_PATH && touch $PROPOSAL_PATH
+tee $PROPOSAL_PATH <<EOF
+{
+  "title": "oracle module param change",
+  "description": "UniqueID and OraclePublicKey",
+  "changes": [
+    {
+      "subspace": "oracle",
+      "key": "UniqueID",
+      "value": "$UNIQUE_ID"
+    },
+    {
+      "subspace": "oracle",
+      "key": "OraclePublicKey",
+      "value": "$ORACLE_PUBKEY"
+    }
+  ],
+  "deposit": "1000000umed"
+}
+EOF
+
+chmod a=rwx $PROPOSAL_PATH
