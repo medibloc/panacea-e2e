@@ -3,10 +3,8 @@ package suite
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 )
-
 
 func copyFile(src, dst string) (int64, error) {
 	sourceFileStat, err := os.Stat(src)
@@ -24,7 +22,7 @@ func copyFile(src, dst string) (int64, error) {
 	}
 	defer source.Close()
 
-	destination, err := os.Create(dst)
+	destination, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return 0, err
 	}
@@ -32,14 +30,4 @@ func copyFile(src, dst string) (int64, error) {
 
 	nBytes, err := io.Copy(destination, source)
 	return nBytes, err
-}
-
-func writeFile(path string, body []byte) error {
-	_, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(path, body, 0o600)
-
 }

@@ -52,7 +52,7 @@ tee $PROPOSAL_PATH <<EOF
       "value": "$ORACLE_PUBKEY"
     }
   ],
-  "deposit": "1000000umed"
+  "deposit": "100000000000umed"
 }
 EOF
 
