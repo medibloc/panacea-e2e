@@ -23,7 +23,7 @@ for (( i=0; i < $NUM_VALIDATORS; i++ )); do
     sed -i 's|^enable = false$|enable = true|g' $APP_CONF_PATH
 
     GENESIS_PATH=$CHAIN_DIR/$MONIKER/config/genesis.json
-    sed -i 's|"voting_period": ".*"|"voting_period": "60s"|g' $GENESIS_PATH
+    sed -i 's|"voting_period": ".*"|"voting_period": "30s"|g' $GENESIS_PATH
 
     NODE_ID=$($BIN tendermint show-node-id --home $CHAIN_DIR/$MONIKER)
     if [ $i -eq 0 ]; then

@@ -72,8 +72,10 @@ func (g *oracleGroup) initAndProposeFirstOracle(validatorResource *dockertest.Re
 
 func (g *oracleGroup) initAndStartRemainingOracles(validatorResource *dockertest.Resource) error {
 	// TODO: use goroutine
-	for _, oracle := range g.oracles[1:] {
-		if err := oracle.initAndRegister(validatorResource); err != nil {
+	for i := 1; i < len(g.oracles); i++ {
+		oracle := g.oracles[i]
+
+		if err := oracle.initAndRegister(validatorResource, i); err != nil {
 			return fmt.Errorf("failed to init and register oracle: %w", err)
 		}
 
@@ -150,7 +152,7 @@ func (o *oracle) initAndPropose(validatorResource *dockertest.Resource) (string,
 	return "", fmt.Errorf("failed to wait until the container is exited")
 }
 
-func (o *oracle) initAndRegister(validatorResource *dockertest.Resource) error {
+func (o *oracle) initAndRegister(validatorResource *dockertest.Resource, index int) error {
 	endpoint := fmt.Sprintf("http://%s", validatorResource.GetHostPort("1317/tcp"))
 	blockHash, blockHeight, err := queryLatestBlock(endpoint)
 	if err != nil {
@@ -178,7 +180,7 @@ func (o *oracle) initAndRegister(validatorResource *dockertest.Resource) error {
 			Env: []string{
 				fmt.Sprintf("ORACLE_MNEMONIC=%s", suite.mnemonic),
 				fmt.Sprintf("ORACLE_ACC_NUM=%d", 0),
-				fmt.Sprintf("ORACLE_ACC_INDEX=%d", 0),
+				fmt.Sprintf("ORACLE_ACC_INDEX=%d", index),
 				fmt.Sprintf("CHAIN_ID=%s", suite.Chain.ID),
 				fmt.Sprintf("PANACEA_VAL_HOST=%s", validatorResource.Container.Name[1:]),
 				fmt.Sprintf("TRUSTED_BLOCK_HASH=%s", blockHash),
@@ -233,6 +235,9 @@ func (o *oracle) start() error {
 	if err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
+
+	//TODO: wait for 8080
+	time.Sleep(30 * time.Second)
 
 	o.dkrResource = resource
 	return nil
