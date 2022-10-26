@@ -56,32 +56,43 @@ func (s *TestSuite) SetupTest() {
 	s.mnemonic, err = newMnemonic()
 	s.Require().NoError(err)
 
+	s.T().Logf("creating a chain...")
 	s.Chain, err = newChain(s, testID, testDir)
 	s.Require().NoError(err)
 
+	s.T().Logf("initializing a chain...")
 	s.Require().NoError(s.Chain.init())
+	s.T().Logf("staring a chain...")
 	s.Require().NoError(s.Chain.start())
 
 	s.waitBlock(3)
+	s.T().Logf("the chain is ready")
 
+	s.T().Logf("creating a chain...")
 	s.oracleGroup, err = newOracleGroup(s, testID, testDir)
 	s.Require().NoError(err)
 
+	s.T().Logf("initializing the first oracle...")
 	proposalHostPath, err := s.oracleGroup.initAndProposeFirstOracle(s.Chain.validators[0].dkrResource)
 	s.Require().NoError(err)
 
+	s.T().Logf("submitting a gov proposal for oracles...")
 	s.Chain.validators[0].submitGovParamChangeProposal(proposalHostPath)
 	s.Require().NoError(err)
 
+	s.T().Logf("voting on the gov proposal...")
 	proposalID := 1
 	for _, validator := range s.Chain.validators {
 		err := validator.voteGovProposal(proposalID, "yes")
 		s.Require().NoError(err)
 	}
+	s.T().Logf("waiting for the gov proposal to be passed...")
 	s.waitGovProposalPassed(proposalID)
 
+	s.T().Logf("starting the first oracle...")
 	err = s.oracleGroup.oracles[0].start()
 	s.Require().NoError(err)
+	s.T().Logf("starting remaining oracles...")
 	err = s.oracleGroup.initAndStartRemainingOracles(s.Chain.validators[0].dkrResource)
 	s.Require().NoError(err)
 }

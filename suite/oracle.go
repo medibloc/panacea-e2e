@@ -71,6 +71,7 @@ func (g *oracleGroup) initAndProposeFirstOracle(validatorResource *dockertest.Re
 }
 
 func (g *oracleGroup) initAndStartRemainingOracles(validatorResource *dockertest.Resource) error {
+	// TODO: use goroutine
 	for _, oracle := range g.oracles[1:] {
 		if err := oracle.initAndRegister(validatorResource); err != nil {
 			return fmt.Errorf("failed to init and register oracle: %w", err)
