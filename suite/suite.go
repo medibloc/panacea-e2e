@@ -62,7 +62,7 @@ func (s *TestSuite) SetupTest() {
 
 	s.T().Logf("initializing a chain...")
 	s.Require().NoError(s.Chain.init())
-	s.T().Logf("staring a chain...")
+	s.T().Logf("starting a chain...")
 	s.Require().NoError(s.Chain.start())
 
 	s.waitBlock(3)
