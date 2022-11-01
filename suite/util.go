@@ -73,7 +73,7 @@ func queryLatestBlock(endpoint string) (string, int64, error) {
 	return hash, height, nil
 }
 
-func queryTxRespCode(endpoint, txHash string) (int, error) {
+func queryTxRespCode(endpoint, txHash string) (float64, error) {
 	resp, err := http.Get(fmt.Sprintf("%s/cosmos/tx/v1beta1/txs/%s", endpoint, txHash))
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute HTTP request: %w", err)
@@ -90,7 +90,7 @@ func queryTxRespCode(endpoint, txHash string) (int, error) {
 	}
 
 	txResp := result["tx_response"].(map[string]interface{})
-	return txResp["code"].(int), nil
+	return txResp["code"].(float64), nil
 }
 
 func queryGovProposal(endpoint string, proposalID int) (*govtypes.QueryProposalResponse, error) {
