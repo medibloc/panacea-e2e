@@ -49,8 +49,7 @@ for (( i=0; i < $NUM_VALIDATORS; i++ )); do
 done
 
 # add genesis oracle
-MONIKER="$CHAIN_ID-val-0"
-$BIN add-genesis-oracle --oracle-account $(panacead keys show val -a --home $CHAIN_DIR/$MONIKER) --home $CHAIN_DIR/$FIRST_MONIKER
+$BIN add-genesis-oracle --oracle-account $(panacead keys show val -a --home $CHAIN_DIR/"$CHAIN_ID-val-0") --home $CHAIN_DIR/$FIRST_MONIKER
 
 for (( i=0; i < $NUM_VALIDATORS; i++ )); do
     MONIKER="$CHAIN_ID-val-$i"
