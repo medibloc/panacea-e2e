@@ -17,8 +17,8 @@ type TestSuite struct {
 
 	opts TestSuiteOptions
 
-	mnemonic string
-	Chain    *Chain
+	mnemonic    string
+	Chain       *Chain
 	oracleGroup *oracleGroup
 
 	dkrPool *dockertest.Pool
@@ -77,7 +77,7 @@ func (s *TestSuite) SetupTest() {
 	s.Require().NoError(err)
 
 	s.T().Logf("submitting a gov proposal for oracles...")
-	s.Chain.validators[0].submitGovParamChangeProposal(proposalHostPath)
+	err = s.Chain.validators[0].submitGovParamChangeProposal(proposalHostPath)
 	s.Require().NoError(err)
 
 	s.T().Logf("voting on the gov proposal...")
