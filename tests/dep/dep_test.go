@@ -5,10 +5,11 @@ import (
 	"io"
 	"net/http"
 	"testing"
-	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/medibloc/panacea-core/v2/types/assets"
+	doracleacc "github.com/medibloc/panacea-doracle/panacea"
 	"github.com/medibloc/panacea-e2e/suite"
 )
 
@@ -19,16 +20,45 @@ type depTestSuite struct {
 func TestDEP(t *testing.T) {
 	suite.Run(t, &depTestSuite{
 		suite.NewTestSuite(suite.TestSuiteOptions{
-			GenesisAccBalance: "1000000000000000umed",
-			NumValidators:     4,
-			ValidatorStake:    "100000000umed",
+			// genesis validator
+			GenValBalance:  "1000000000000000umed", // 1b MED
+			NumValidators:  2,
+			ValidatorStake: "100000000umed", // 100 MED
+
+			// genesis account
+			GenAccBalance: "1000000000000umed", // 1m MED
+			NumAccounts:   2,
 		}),
 	})
 }
 
-func (s *depTestSuite) TestFoo() {
-	s.T().Log("yo")
-	time.Sleep(1 * time.Hour)
+func (s *depTestSuite) TestSendCoin() {
+	endpoint := fmt.Sprintf("http://%s", s.Chain.Validators[0].DkrResource.GetHostPort("1317/tcp"))
+	val0 := s.Chain.Validators[0]
+	addr0 := val0.GetAddress()
+
+	newAccMnemonic, err := suite.NewMnemonic()
+	s.Require().NoError(err)
+
+	newAcc, err := doracleacc.NewOracleAccount(newAccMnemonic, uint32(0), uint32(0))
+	s.Require().NoError(err)
+
+	balance, err := queryBalances(endpoint, newAcc.GetAddress())
+	s.Require().NoError(err)
+	s.Equal(sdk.NewCoins(sdk.NewCoin(assets.MicroMedDenom, sdk.ZeroInt())), balance)
+
+	err = val0.SendCoin(addr0, newAcc.GetAddress(), "100000000umed")
+	s.Require().NoError(err)
+
+	balance, err = queryBalances(endpoint, newAcc.GetAddress())
+	s.Require().NoError(err)
+	s.Equal(sdk.NewCoins(sdk.NewCoin(assets.MicroMedDenom, sdk.NewInt(100000000))), balance)
+
+	bal1, err := queryBalances(endpoint, s.Chain.Accounts[0].GetAddress())
+	s.Require().Equal(sdk.NewCoins(sdk.NewCoin(assets.MicroMedDenom, sdk.NewInt(1000000000000))), bal1)
+
+	bal2, err := queryBalances(endpoint, s.Chain.Accounts[1].GetAddress())
+	s.Require().Equal(sdk.NewCoins(sdk.NewCoin(assets.MicroMedDenom, sdk.NewInt(1000000000000))), bal2)
 }
 
 func queryBalances(endpoint, addr string) (sdk.Coins, error) {

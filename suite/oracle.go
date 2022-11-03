@@ -83,7 +83,7 @@ func (g *oracleGroup) initAndStartRemainingOracles(validatorResource *dockertest
 			return fmt.Errorf("failed to start oracle: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -113,7 +113,7 @@ func (o *oracle) initAndPropose(validatorResource *dockertest.Resource) (string,
 			Mounts:     []string{fmt.Sprintf("%s/:/doracle", o.dir)},
 			Cmd:        []string{"bash", fmt.Sprintf("/doracle/%s", scriptName)},
 			Env: []string{
-				fmt.Sprintf("ORACLE_MNEMONIC=%s", suite.mnemonic),
+				fmt.Sprintf("ORACLE_MNEMONIC=%s", suite.valMnemonic),
 				fmt.Sprintf("ORACLE_ACC_NUM=%d", 0),
 				fmt.Sprintf("ORACLE_ACC_INDEX=%d", 0),
 				fmt.Sprintf("CHAIN_ID=%s", suite.Chain.ID),
@@ -178,7 +178,7 @@ func (o *oracle) initAndRegister(validatorResource *dockertest.Resource, index i
 			Mounts:     []string{fmt.Sprintf("%s/:/doracle", o.dir)},
 			Cmd:        []string{"bash", fmt.Sprintf("/doracle/%s", scriptName)},
 			Env: []string{
-				fmt.Sprintf("ORACLE_MNEMONIC=%s", suite.mnemonic),
+				fmt.Sprintf("ORACLE_MNEMONIC=%s", suite.valMnemonic),
 				fmt.Sprintf("ORACLE_ACC_NUM=%d", 0),
 				fmt.Sprintf("ORACLE_ACC_INDEX=%d", index),
 				fmt.Sprintf("CHAIN_ID=%s", suite.Chain.ID),

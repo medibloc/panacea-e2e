@@ -16,6 +16,7 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	panacea "github.com/medibloc/panacea-core/v2/app"
 	"github.com/medibloc/panacea-core/v2/app/params"
+	doracleacc "github.com/medibloc/panacea-doracle/panacea"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
 )
@@ -45,7 +46,8 @@ type Chain struct {
 	suite      *TestSuite
 	dir        string
 	ID         string
-	validators []*validator
+	Validators []*validator
+	Accounts   []*doracleacc.OracleAccount
 }
 
 type validator struct {
@@ -53,7 +55,8 @@ type validator struct {
 	dir         string
 	index       int
 	moniker     string
-	dkrResource *dockertest.Resource
+	valAccount  *doracleacc.OracleAccount
+	DkrResource *dockertest.Resource
 }
 
 func newChain(suite *TestSuite, testID, testDir string) (*Chain, error) {
@@ -66,7 +69,7 @@ func newChain(suite *TestSuite, testID, testDir string) (*Chain, error) {
 		suite:      suite,
 		ID:         "chain-" + testID,
 		dir:        chainDir,
-		validators: make([]*validator, 0),
+		Validators: make([]*validator, 0),
 	}
 
 	for i := 0; i < suite.opts.NumValidators; i++ {
@@ -76,19 +79,35 @@ func newChain(suite *TestSuite, testID, testDir string) (*Chain, error) {
 			return nil, err
 		}
 
-		chain.validators = append(chain.validators, &validator{
-			chain:   chain,
-			dir:     valDir,
-			index:   i,
-			moniker: moniker,
+		valAccount, err := doracleacc.NewOracleAccount(suite.valMnemonic, 0, uint32(i))
+		if err != nil {
+			return nil, err
+		}
+
+		chain.Validators = append(chain.Validators, &validator{
+			chain:      chain,
+			dir:        valDir,
+			index:      i,
+			valAccount: valAccount,
+			moniker:    moniker,
 		})
 	}
+
+	var accounts []*doracleacc.OracleAccount
+	for j := 0; j < suite.opts.NumAccounts; j++ {
+		acc, err := doracleacc.NewOracleAccount(suite.accMnemonic, 0, uint32(j))
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, acc)
+	}
+	chain.Accounts = accounts
 
 	return chain, nil
 }
 
 func (c *Chain) close() error {
-	for _, validator := range c.validators {
+	for _, validator := range c.Validators {
 		if err := validator.stop(); err != nil {
 			return err
 		}
@@ -121,9 +140,12 @@ func (c *Chain) init() error {
 			Env: []string{
 				fmt.Sprintf("CHAIN_ID=%s", c.ID),
 				fmt.Sprintf("NUM_VALIDATORS=%d", suite.opts.NumValidators),
-				fmt.Sprintf("MNEMONIC=%s", suite.mnemonic),
-				fmt.Sprintf("GEN_ACC_BALANCE=%s", suite.opts.GenesisAccBalance),
+				fmt.Sprintf("VAL_MNEMONIC=%s", suite.valMnemonic),
+				fmt.Sprintf("GEN_VAL_BALANCE=%s", suite.opts.GenValBalance),
 				fmt.Sprintf("STAKE=%s", suite.opts.ValidatorStake),
+				fmt.Sprintf("NUM_ACCOUNTS=%d", suite.opts.NumAccounts),
+				fmt.Sprintf("ACC_MNEMONIC=%s", suite.accMnemonic),
+				fmt.Sprintf("GEN_ACC_BALANCE=%s", suite.opts.GenAccBalance),
 			},
 		},
 		noRestart,
@@ -156,7 +178,7 @@ func (c *Chain) init() error {
 }
 
 func (c *Chain) start() error {
-	for _, validator := range c.validators {
+	for _, validator := range c.Validators {
 		if err := validator.start(); err != nil {
 			return fmt.Errorf("failed to start validator-%d: %w", validator.index, err)
 		}
@@ -183,16 +205,16 @@ func (v *validator) start() error {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 
-	v.dkrResource = resource
+	v.DkrResource = resource
 	return nil
 }
 
 func (v *validator) stop() error {
-	if v.dkrResource != nil {
-		if err := v.chain.suite.dkrPool.Purge(v.dkrResource); err != nil {
+	if v.DkrResource != nil {
+		if err := v.chain.suite.dkrPool.Purge(v.DkrResource); err != nil {
 			return err
 		}
-		v.dkrResource = nil
+		v.DkrResource = nil
 	}
 
 	return nil
@@ -241,6 +263,24 @@ func (v *validator) voteGovProposal(proposalID int, voteOpt string) error {
 	return v.executeTxCmd(cmd)
 }
 
+func (v *validator) SendCoin(from, to, amount string) error {
+	cmd := []string{
+		"/usr/bin/panacead",
+		"tx",
+		"bank",
+		"send",
+		fmt.Sprintf("%s", from),
+		fmt.Sprintf("%s", to),
+		fmt.Sprintf("%s", amount),
+		"--fees=1000000umed",
+		fmt.Sprintf("--chain-id=%s", v.chain.ID),
+		"--output=json",
+		"-y",
+	}
+
+	return v.executeTxCmd(cmd)
+}
+
 func (v *validator) executeTxCmd(cmd []string) error {
 	ctx := context.Background()
 
@@ -250,7 +290,7 @@ func (v *validator) executeTxCmd(cmd []string) error {
 		Context:      ctx,
 		AttachStdout: true,
 		AttachStderr: true,
-		Container:    v.dkrResource.Container.ID,
+		Container:    v.DkrResource.Container.ID,
 		User:         "root",
 		Cmd:          cmd,
 	})
@@ -274,7 +314,7 @@ func (v *validator) executeTxCmd(cmd []string) error {
 		return fmt.Errorf("failed to unmarshal tx resp: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("http://%s", v.dkrResource.GetHostPort("1317/tcp"))
+	endpoint := fmt.Sprintf("http://%s", v.DkrResource.GetHostPort("1317/tcp"))
 	for i := 0; i < 10; i++ {
 		code, err := queryTxRespCode(endpoint, txResp.TxHash)
 		if err != nil {
@@ -287,6 +327,10 @@ func (v *validator) executeTxCmd(cmd []string) error {
 	}
 
 	return fmt.Errorf("failed to wait tx success")
+}
+
+func (v validator) GetAddress() string {
+	return v.valAccount.GetAddress()
 }
 
 func noRestart(config *docker.HostConfig) {

@@ -11,7 +11,12 @@ for (( i=0; i < $NUM_VALIDATORS; i++ )); do
     MONIKER="$CHAIN_ID-val-$i"
 
     $BIN init $MONIKER --chain-id $CHAIN_ID --home $CHAIN_DIR/$MONIKER
-    echo -e "${MNEMONIC}\n\n" | $BIN keys add val -i --account 0 --index $i --home $CHAIN_DIR/$MONIKER
+    echo -e "${VAL_MNEMONIC}\n\n" | $BIN keys add val -i --account 0 --index $i --home $CHAIN_DIR/$MONIKER
+
+    for (( j=0; j < $NUM_ACCOUNTS; j++ )); do
+        ACC="acc-$j"
+        echo -e "${ACC_MNEMONIC}\n\n" | $BIN keys add $ACC -i --account 0 --index $j --home $CHAIN_DIR/$MONIKER
+    done
 
     CONFIG_PATH=$CHAIN_DIR/$MONIKER/config/config.toml
     sed -i 's|^laddr = "tcp://.*:26656"$|laddr = "tcp://0.0.0.0:26656"|g' $CONFIG_PATH
@@ -45,11 +50,17 @@ FIRST_MONIKER="$CHAIN_ID-val-0"
 for (( i=0; i < $NUM_VALIDATORS; i++ )); do
     MONIKER="$CHAIN_ID-val-$i"
 
-    $BIN add-genesis-account $(panacead keys show val -a --home $CHAIN_DIR/$MONIKER) $GEN_ACC_BALANCE --home $CHAIN_DIR/$FIRST_MONIKER
+    $BIN add-genesis-account $(panacead keys show val -a --home $CHAIN_DIR/$MONIKER) $GEN_VAL_BALANCE --home $CHAIN_DIR/$FIRST_MONIKER
+
+done
+
+for (( i=0; i < $NUM_ACCOUNTS; i++ )); do
+    ACC="acc-$i"
+    $BIN add-genesis-account $(panacead keys show $ACC -a --home $CHAIN_DIR/$MONIKER) $GEN_ACC_BALANCE --home $CHAIN_DIR/$FIRST_MONIKER
 done
 
 # add genesis oracle
-$BIN add-genesis-oracle --oracle-account $(panacead keys show val -a --home $CHAIN_DIR/"$CHAIN_ID-val-0") --home $CHAIN_DIR/$FIRST_MONIKER
+$BIN add-genesis-oracle --oracle-account $(panacead keys show val -a --home $CHAIN_DIR/$FIRST_MONIKER) --home $CHAIN_DIR/$FIRST_MONIKER
 
 for (( i=0; i < $NUM_VALIDATORS; i++ )); do
     MONIKER="$CHAIN_ID-val-$i"

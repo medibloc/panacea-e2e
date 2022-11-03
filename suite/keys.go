@@ -1,8 +1,10 @@
 package suite
 
-import "github.com/cosmos/go-bip39"
+import (
+	"github.com/cosmos/go-bip39"
+)
 
-func newMnemonic() (string, error) {
+func NewMnemonic() (string, error) {
 	entropySeed, err := bip39.NewEntropy(256)
 	if err != nil {
 		return "", err

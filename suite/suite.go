@@ -17,7 +17,8 @@ type TestSuite struct {
 
 	opts TestSuiteOptions
 
-	mnemonic    string
+	valMnemonic string
+	accMnemonic string
 	Chain       *Chain
 	oracleGroup *oracleGroup
 
@@ -53,7 +54,10 @@ func (s *TestSuite) SetupTest() {
 	s.dkrNet, err = s.dkrPool.CreateNetwork(testID)
 	s.Require().NoError(err)
 
-	s.mnemonic, err = newMnemonic()
+	s.valMnemonic, err = NewMnemonic()
+	s.Require().NoError(err)
+
+	s.accMnemonic, err = NewMnemonic()
 	s.Require().NoError(err)
 
 	s.T().Logf("creating a chain...")
@@ -73,16 +77,16 @@ func (s *TestSuite) SetupTest() {
 	s.Require().NoError(err)
 
 	s.T().Logf("initializing the first oracle...")
-	proposalHostPath, err := s.oracleGroup.initAndProposeFirstOracle(s.Chain.validators[0].dkrResource)
+	proposalHostPath, err := s.oracleGroup.initAndProposeFirstOracle(s.Chain.Validators[0].DkrResource)
 	s.Require().NoError(err)
 
 	s.T().Logf("submitting a gov proposal for oracles...")
-	err = s.Chain.validators[0].submitGovParamChangeProposal(proposalHostPath)
+	err = s.Chain.Validators[0].submitGovParamChangeProposal(proposalHostPath)
 	s.Require().NoError(err)
 
 	s.T().Logf("voting on the gov proposal...")
 	proposalID := 1
-	for _, validator := range s.Chain.validators {
+	for _, validator := range s.Chain.Validators {
 		err := validator.voteGovProposal(proposalID, "yes")
 		s.Require().NoError(err)
 	}
@@ -93,7 +97,7 @@ func (s *TestSuite) SetupTest() {
 	err = s.oracleGroup.oracles[0].start()
 	s.Require().NoError(err)
 	s.T().Logf("starting remaining oracles...")
-	err = s.oracleGroup.initAndStartRemainingOracles(s.Chain.validators[0].dkrResource)
+	err = s.oracleGroup.initAndStartRemainingOracles(s.Chain.Validators[0].DkrResource)
 	s.Require().NoError(err)
 }
 
@@ -104,7 +108,7 @@ func (s *TestSuite) TearDownTest() {
 }
 
 func (s *TestSuite) waitBlock(height int64) {
-	endpoint := fmt.Sprintf("http://%s", s.Chain.validators[0].dkrResource.GetHostPort("1317/tcp"))
+	endpoint := fmt.Sprintf("http://%s", s.Chain.Validators[0].DkrResource.GetHostPort("1317/tcp"))
 
 	s.Require().Eventually(
 		func() bool {
@@ -122,7 +126,7 @@ func (s *TestSuite) waitBlock(height int64) {
 }
 
 func (s *TestSuite) waitGovProposalPassed(proposalID int) {
-	endpoint := fmt.Sprintf("http://%s", s.Chain.validators[0].dkrResource.GetHostPort("1317/tcp"))
+	endpoint := fmt.Sprintf("http://%s", s.Chain.Validators[0].DkrResource.GetHostPort("1317/tcp"))
 
 	s.Require().Eventually(
 		func() bool {

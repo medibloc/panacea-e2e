@@ -1,7 +1,12 @@
 package suite
 
 type TestSuiteOptions struct {
-	GenesisAccBalance string
-	NumValidators     int
-	ValidatorStake    string
+	// genesis validator
+	GenValBalance  string
+	NumValidators  int
+	ValidatorStake string
+
+	// genesis account
+	GenAccBalance string
+	NumAccounts   int
 }
