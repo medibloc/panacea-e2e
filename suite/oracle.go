@@ -108,7 +108,7 @@ func (o *oracle) initAndPropose(validatorResource *dockertest.Resource) (string,
 	r, err := suite.dkrPool.RunWithOptions(
 		&dockertest.RunOptions{
 			Repository: "ghcr.io/medibloc/panacea-doracle",
-			Tag:        "pr-87",
+			Tag:        "main",
 			NetworkID:  suite.dkrNet.Network.ID,
 			Mounts:     []string{fmt.Sprintf("%s/:/doracle", o.dir)},
 			Cmd:        []string{"bash", fmt.Sprintf("/doracle/%s", scriptName)},
@@ -173,7 +173,7 @@ func (o *oracle) initAndRegister(validatorResource *dockertest.Resource, index i
 	resource, err := suite.dkrPool.RunWithOptions(
 		&dockertest.RunOptions{
 			Repository: "ghcr.io/medibloc/panacea-doracle",
-			Tag:        "pr-87",
+			Tag:        "main",
 			NetworkID:  suite.dkrNet.Network.ID,
 			Mounts:     []string{fmt.Sprintf("%s/:/doracle", o.dir)},
 			Cmd:        []string{"bash", fmt.Sprintf("/doracle/%s", scriptName)},
@@ -224,7 +224,7 @@ func (o *oracle) start() error {
 		&dockertest.RunOptions{
 			Name:       o.moniker,
 			Repository: "ghcr.io/medibloc/panacea-doracle",
-			Tag:        "pr-87",
+			Tag:        "main",
 			NetworkID:  suite.dkrNet.Network.ID,
 			Mounts:     []string{fmt.Sprintf("%s/:/doracle", o.dir)},
 			Cmd:        []string{"ego", "run", "/usr/bin/doracled", "start"},
